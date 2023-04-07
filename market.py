@@ -1,3 +1,4 @@
+
 from flask import Flask, render_template
 from flask_sqlalchemy import SQLAlchemy
 
@@ -12,8 +13,8 @@ class Item(db.Model):
     barcode = db.Column(db.String(length=12), nullable=False, unique=True)
     description = db.Column(db.String(length=1024), nullable=False, unique=True)
 
-def __repr__(self):
-    return f'Item {self.name}'
+    def __repr__(self):
+        return f'Item {self.name}'
 
 
 @app.route('/')
@@ -25,6 +26,3 @@ def home_page():
 def market_page():
     items = Item.query.all()
     return render_template('market.html', items=items)
-
-
-app.run(host='0.0.0.0', port=81, use_reloader=True)

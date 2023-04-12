@@ -12,7 +12,9 @@
       
   </head>
   <body>
-    
+
+    <br>
+    <div class="container">
     <nav class="navbar navbar-expand-md navbar-dark bg-dark">
       <a class="navbar-brand" href="#">Flask Market</a>
       <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav">
@@ -32,11 +34,12 @@
                 <a class="nav-link" href="#">Login</a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="#">Register</a>
+                <a class="nav-link" href="{{ url_for('register_page') }}">Register</a>
             </li>
         </ul>
       </div>
     </nav>
+    </div>
       
     {% block content %}
     {% endblock %}

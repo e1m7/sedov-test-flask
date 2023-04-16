@@ -1,6 +1,7 @@
 import os
 from flask import Flask, render_template, redirect, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
+from flask_bcrypt import Bcrypt
 
 SECRET_KEY = os.urandom(32)
 
@@ -8,6 +9,7 @@ app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///market.db'
 app.config['SECRET_KEY'] = SECRET_KEY
 db = SQLAlchemy(app)
+bcrypt = Bcrypt(app)
 
 # --------------------------- CLASSES -------------------------------------------
 
@@ -21,6 +23,14 @@ class User(db.Model):
     password_hash = db.Column(db.String(length=60), nullable=False)
     budget = db.Column(db.Integer(), nullable=False, default=1000)
     items = db.relationship('Item', backref='owned_user', lazy=True)
+
+    @property
+    def password(self):
+        return self.password
+
+    @password.setter
+    def password(self, plain_text_password):
+        self.password_hash = bcrypt.generate_password_hash(plain_text_password).decode('utf-8')
 
 
 class Item(db.Model):
@@ -69,6 +79,11 @@ class RegisterForm(FlaskForm):
     submit = SubmitField(label='Create Account')
 
 
+class LoginForm(FlaskForm):
+    username = StringField(label='User Name:', validators=[DataRequired()])
+    password = PasswordField(label='Password:', validators=[DataRequired()])
+    submit = SubmitField(label='Sign In')
+
 # --------------------------- ROUTERS -------------------------------------------
 
 
@@ -90,7 +105,7 @@ def register_page():
     if form.validate_on_submit():
         user_to_create = User(username=form.username.data,
                               email_address=form.email_address.data,
-                              password_hash=form.password1.data)
+                              password=form.password1.data)
         db.session.add(user_to_create)
         db.session.commit()
         return redirect(url_for('market_page'))
@@ -99,6 +114,11 @@ def register_page():
             flash(f'There was an error with creating a user: {err_msg}', category='danger')
 
     return render_template('register.html', form=form)
+
+@app.route('/login', methods=['GET', 'POST'])
+def login_page():
+    form = LoginForm()
+    return render_template('login.html', form=form)
 
 
 app.run(host='0.0.0.0', port=81, use_reloader=True)

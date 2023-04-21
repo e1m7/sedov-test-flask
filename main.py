@@ -4,7 +4,7 @@ from flask import Flask, render_template, redirect, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
 from flask_bcrypt import Bcrypt
 from flask_login import LoginManager
-from flask_login import login_user
+from flask_login import login_user, logout_user, login_required
 from flask_login import UserMixin
 
 SECRET_KEY = os.urandom(32)
@@ -15,6 +15,8 @@ app.config["SECRET_KEY"] = SECRET_KEY
 db = SQLAlchemy(app)
 bcrypt = Bcrypt(app)
 login_manager = LoginManager(app)
+login_manager.login_view = "login_page"
+login_manager.login_message_category = "info"
 
 # --------------------------- CLASSES -------------------------------------------
 
@@ -120,6 +122,7 @@ def home_page():
 
 
 @app.route("/market")
+@login_required
 def market_page():
     items = Item.query.all()
     return render_template("market.html", items=items)
@@ -136,6 +139,11 @@ def register_page():
         )
         db.session.add(user_to_create)
         db.session.commit()
+        login_user(user_to_create)
+        flash(
+                f"Account create success! You: {user_to_create.username}",
+                category="success",
+            )
         return redirect(url_for("market_page"))
     if form.errors != {}:  # If there are not errors from the validations
         for err_msg in form.errors.values():
@@ -167,6 +175,13 @@ def login_page():
             )
 
     return render_template("login.html", form=form)
+
+
+@app.route("/logout")
+def logout_page():
+    logout_user()
+    flash("You have logged out!", category='info')
+    return redirect(url_for('home_page'))
 
 
 app.run(host="0.0.0.0", port=81, use_reloader=True)

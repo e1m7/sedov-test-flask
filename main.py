@@ -1,6 +1,6 @@
 
 import os
-from flask import Flask, render_template, redirect, url_for, flash
+from flask import Flask, render_template, redirect, url_for, flash, request
 from flask_sqlalchemy import SQLAlchemy
 from flask_bcrypt import Bcrypt
 from flask_login import LoginManager
@@ -111,6 +111,12 @@ class LoginForm(FlaskForm):
     password = PasswordField(label="Password:", validators=[DataRequired()])
     submit = SubmitField(label="Sign In")
 
+class BayForm(FlaskForm):
+    submit = SubmitField(label="Bay item")
+
+class SellForm(FlaskForm):
+    submit = SubmitField(label="Sell item")
+
 
 # --------------------------- ROUTERS -------------------------------------------
 
@@ -121,11 +127,14 @@ def home_page():
     return render_template("home.html")
 
 
-@app.route("/market")
+@app.route("/market", methods=["GET", "POST"])
 @login_required
 def market_page():
+    bay_form = BayForm()
+    if bay_form.validate_on_submit():
+        print(request.form.get('bay_item'))
     items = Item.query.all()
-    return render_template("market.html", items=items)
+    return render_template("market.html", items=items, bay_form=bay_form)
 
 
 @app.route("/register", methods=["GET", "POST"])
@@ -182,6 +191,8 @@ def logout_page():
     logout_user()
     flash("You have logged out!", category='info')
     return redirect(url_for('home_page'))
+
+
 
 
 app.run(host="0.0.0.0", port=81, use_reloader=True)

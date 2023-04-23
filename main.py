@@ -4,7 +4,7 @@ from flask import Flask, render_template, redirect, url_for, flash, request
 from flask_sqlalchemy import SQLAlchemy
 from flask_bcrypt import Bcrypt
 from flask_login import LoginManager
-from flask_login import login_user, logout_user, login_required
+from flask_login import login_user, logout_user, login_required, current_user
 from flask_login import UserMixin
 
 SECRET_KEY = os.urandom(32)
@@ -53,6 +53,9 @@ class User(db.Model, UserMixin):
 
     def check_password_correction(self, attempted_password):
         return bcrypt.check_password_hash(self.password_hash, attempted_password)
+
+    def can_bay(self, item_obj):
+        return self.budget >= item_obj.price
 
 
 class Item(db.Model):
@@ -131,10 +134,21 @@ def home_page():
 @login_required
 def market_page():
     bay_form = BayForm()
-    if bay_form.validate_on_submit():
-        print(request.form.get('bay_item'))
-    items = Item.query.all()
-    return render_template("market.html", items=items, bay_form=bay_form)
+    if request.method == 'POST':
+        bay_item = request.form.get('bay_item')
+        p_item_object = Item.query.filter_by(name=bay_item).first()
+        if p_item_object:
+            if current_user.can_bay(p_item_object):
+                p_item_object.owner = current_user.id
+                current_user.budget = current_user.budget - p_item_object.price
+                db.session.commit()
+                flash(f'Congratulations! You bay {p_item_object.name} for {p_item_object.price}', category='success')
+            else:
+                flash(f'Error bay! You dont bay {p_item_object.name} for {p_item_object.price}', category='danger')
+        return redirect(url_for('market_page'))
+    if request.method == 'GET':
+        items = Item.query.filter_by(owner=None)
+        return render_template("market.html", items=items, bay_form=bay_form)
 
 
 @app.route("/register", methods=["GET", "POST"])

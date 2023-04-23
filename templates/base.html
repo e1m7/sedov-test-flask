@@ -11,7 +11,6 @@
    </head>
    <body>
       <br>
-      <div class="container">
          <nav class="navbar navbar-expand-md navbar-dark bg-dark">
             <a class="navbar-brand" href="#">Flask Market</a>
             <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav">
@@ -53,7 +52,6 @@
                {% endif %}
             </div>
          </nav>
-      </div>
       {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
       {% for category, message in messages %}

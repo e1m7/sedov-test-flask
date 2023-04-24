@@ -37,10 +37,10 @@ class User(db.Model, UserMixin):
     @property
     def prettier_budget(self):
         if len(str(self.budget)) >= 4:
-            return f'{str(self.budget)[:-3]},{str(self.budget)[-3:]}$'
+            return f"{str(self.budget)[:-3]},{str(self.budget)[-3:]}$"
         else:
-            return f'{self.budget}$'
-    
+            return f"{self.budget}$"
+
     @property
     def password(self):
         return self.password
@@ -57,6 +57,9 @@ class User(db.Model, UserMixin):
     def can_bay(self, item_obj):
         return self.budget >= item_obj.price
 
+    def can_sell(self, item_obj):
+        return item_obj in self.items
+
 
 class Item(db.Model):
     id = db.Column(db.Integer(), primary_key=True)
@@ -68,6 +71,16 @@ class Item(db.Model):
 
     def __repr__(self):
         return f"Item {self.name}"
+
+    def bay(self, user):
+        self.owner = user.id
+        user.budget = user.budget - self.price
+        db.session.commit()
+
+    def sell(self, user):
+        self.owner = None
+        user.budget = user.budget + self.price
+        db.session.commit()
 
 
 # --------------------------- FORMS -------------------------------------------
@@ -114,11 +127,17 @@ class LoginForm(FlaskForm):
     password = PasswordField(label="Password:", validators=[DataRequired()])
     submit = SubmitField(label="Sign In")
 
+
 class BayForm(FlaskForm):
     submit = SubmitField(label="Bay item")
 
+
 class SellForm(FlaskForm):
     submit = SubmitField(label="Sell item")
+
+
+class SellItemForm(FlaskForm):
+    submit = SubmitField(label="Sell Item!")
 
 
 # --------------------------- ROUTERS -------------------------------------------
@@ -134,21 +153,51 @@ def home_page():
 @login_required
 def market_page():
     bay_form = BayForm()
-    if request.method == 'POST':
-        bay_item = request.form.get('bay_item')
+    selling_form = SellItemForm()
+    if request.method == "POST":
+
+        bay_item = request.form.get("bay_item")
         p_item_object = Item.query.filter_by(name=bay_item).first()
         if p_item_object:
             if current_user.can_bay(p_item_object):
-                p_item_object.owner = current_user.id
-                current_user.budget = current_user.budget - p_item_object.price
-                db.session.commit()
-                flash(f'Congratulations! You bay {p_item_object.name} for {p_item_object.price}', category='success')
+                p_item_object.bay(current_user)
+                flash(
+                    f"Congratulations! You bay {p_item_object.name} for {p_item_object.price}$",
+                    category="success",
+                )
             else:
-                flash(f'Error bay! You dont bay {p_item_object.name} for {p_item_object.price}', category='danger')
-        return redirect(url_for('market_page'))
-    if request.method == 'GET':
+                flash(
+                    f"Error bay! You dont bay {p_item_object.name} for {p_item_object.price}",
+                    category="danger",
+                )
+
+        sold_item = request.form.get("sold_item")
+        s_item_object = Item.query.filter_by(name=sold_item).first()
+        if s_item_object:
+            if current_user.can_sell(s_item_object):
+                s_item_object.sell(current_user)
+                flash(
+                    f"Congratulations! You sold {s_item_object.name} back to market!",
+                    category="success",
+                )
+            else:
+                flash(
+                    f"Something went wrong with selling {s_item_object.name}",
+                    category="danger",
+                )
+
+        return redirect(url_for("market_page"))
+
+    if request.method == "GET":
         items = Item.query.filter_by(owner=None)
-        return render_template("market.html", items=items, bay_form=bay_form)
+        owned_items = Item.query.filter_by(owner=current_user.id)
+        return render_template(
+            "market.html",
+            items=items,
+            bay_form=bay_form,
+            owned_items=owned_items,
+            selling_form=selling_form,
+        )
 
 
 @app.route("/register", methods=["GET", "POST"])
@@ -164,9 +213,9 @@ def register_page():
         db.session.commit()
         login_user(user_to_create)
         flash(
-                f"Account create success! You: {user_to_create.username}",
-                category="success",
-            )
+            f"Account create success! You: {user_to_create.username}",
+            category="success",
+        )
         return redirect(url_for("market_page"))
     if form.errors != {}:  # If there are not errors from the validations
         for err_msg in form.errors.values():
@@ -203,11 +252,8 @@ def login_page():
 @app.route("/logout")
 def logout_page():
     logout_user()
-    flash("You have logged out!", category='info')
-    return redirect(url_for('home_page'))
-
-
+    flash("You have logged out!", category="info")
+    return redirect(url_for("home_page"))
 
 
 app.run(host="0.0.0.0", port=81, use_reloader=True)
-
